@@ -1,0 +1,55 @@
+name: Keylity – Deploy NestJS backend
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Deploy to remote server
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "Deploying to PRODUCTION..."
+            ssh -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'EOF'
+              cd /var/www/keylity-backend-prod
+              git pull origin main
+              npm ci
+              npm run build
+              pm2 restart keylity-prod
+            EOF
+          elif [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
+            echo "Deploying to DEVELOPMENT..."
+            ssh -o StrictHostKeyChecking=no ${{ secrets.DEV_SSH_USER }}@${{ secrets.DEV_SSH_HOST }} << 'EOF'
+              cd /var/www/keylity-backend-dev
+              git pull origin develop
+              npm ci
+              npm run build
+              pm2 restart keylity-dev
+            EOF
+          else
+            echo "No deploy target found for this branch."
+            exit 1
+          fi
