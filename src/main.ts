@@ -24,7 +24,7 @@ async function bootstrap() {
 
   // Récupération du port depuis la configuration
   const port = parseInt(process.env.PORT ?? configService.get('PORT') ?? '3000', 10);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`Application is running on: ${await app.getUrl()}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
