@@ -23,7 +23,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   // Récupération du port depuis la configuration
-  const port = configService.get('port');
+  const port = parseInt(process.env.PORT ?? configService.get('PORT') ?? '3000', 10);
   await app.listen(port);
 
   console.log(`Application is running on: ${await app.getUrl()}`);
