@@ -10,8 +10,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
 
     steps:
       - name: Checkout code
@@ -26,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build backend
-        run: npm run build
+        run: node node_modules/@nestjs/cli/bin/nest.js build
 
       - name: Deploy to remote server
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
@@ -37,8 +35,8 @@ jobs:
               cd /var/www/keylity-backend-prod
               git pull origin main
               npm ci
-              npm run build
-              pm2 restart keylity-prod
+              node node_modules/@nestjs/cli/bin/nest.js build
+              NODE_ENV=production pm2 restart keylity-prod
             EOF
           elif [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
             echo "Deploying to DEVELOPMENT..."
@@ -46,8 +44,8 @@ jobs:
               cd /var/www/keylity-backend-dev
               git pull origin develop
               npm ci
-              npm run build
-              pm2 restart keylity-dev
+              node node_modules/@nestjs/cli/bin/nest.js build
+              NODE_ENV=developpement pm2 restart keylity-dev
             EOF
           else
             echo "No deploy target found for this branch."
