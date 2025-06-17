@@ -73,7 +73,6 @@ export class AuthService {
         throw new Error('Erreur l\'inscription: Aucune donnée utilisateur retournée');
       }
 
-      // Créer l'utilisateur dans la table users
       const { error: dbError } = await this.supabaseService
         .getAdminClient()
         .from('users')
@@ -125,7 +124,7 @@ export class AuthService {
         ]);
 
       if (profileError) {
-        this.logger.error(`Error creating user profile: ${profileError.message}`);
+        this.logger.error(`❌ Supabase profile insert failed:`, profileError);
         throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
       }
 
