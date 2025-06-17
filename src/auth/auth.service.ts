@@ -90,10 +90,13 @@ export class AuthService {
         );
       }
 
+<<<<<<< HEAD
 
       const userId = authData.user.id;
 
       // Créer l'utilisateur dans la table users
+=======
+>>>>>>> 73de4ff (add change)
       const { error: dbError } = await this.supabaseService
         .getAdminClient()
         .from('users')
@@ -134,7 +137,12 @@ export class AuthService {
         .insert([profilePayload]);
 
       if (profileError) {
+<<<<<<< HEAD
         throw new Error(`Erreur insertion profil: ${profileError.message}`);
+=======
+        this.logger.error(`❌ Supabase profile insert failed:`, profileError);
+        throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
+>>>>>>> 73de4ff (add change)
       }
 
       this.logger.log(`Utilisateur ${userId} enregistré avec succès.`);
