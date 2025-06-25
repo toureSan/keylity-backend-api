@@ -8,7 +8,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-
   app.enableCors({
     origin: ['http://localhost:4000', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -16,10 +15,8 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
-
   app.useGlobalPipes(new ValidationPipe());
   app.setGlobalPrefix('api');
-
 
   const config = new DocumentBuilder()
     .setTitle('Keylity API')
@@ -30,10 +27,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-
   const port = configService.get('port');
   await app.listen(port);
-
-
 }
 bootstrap();

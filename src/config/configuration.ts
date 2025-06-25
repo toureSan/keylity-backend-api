@@ -2,7 +2,8 @@ import { config } from 'dotenv';
 import * as path from 'path';
 
 // Charger le fichier .env approprié
-const envFile = process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
+const envFile =
+  process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
 config({ path: path.resolve(process.cwd(), envFile) });
 
 export default () => ({
@@ -23,4 +24,4 @@ export default () => ({
   app: {
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4000',
   },
-}); 
+});

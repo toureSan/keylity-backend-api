@@ -14,10 +14,12 @@ import { AppService } from './app.service';
       load: [configuration],
       envFilePath: `.env.${process.env.NODE_ENV || 'developpement'}`,
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60,
-      limit: 10,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 10,
+      },
+    ]),
     HealthModule,
     AuthModule,
   ],

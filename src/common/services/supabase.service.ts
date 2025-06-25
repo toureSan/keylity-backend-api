@@ -12,7 +12,9 @@ export class SupabaseService implements OnModuleInit {
   onModuleInit() {
     const supabaseUrl = this.configService.get<string>('supabase.url');
     const supabaseKey = this.configService.get<string>('supabase.key');
-    const supabaseServiceKey = this.configService.get<string>('supabase.serviceKey');
+    const supabaseServiceKey = this.configService.get<string>(
+      'supabase.serviceKey',
+    );
 
     if (!supabaseUrl || !supabaseKey || !supabaseServiceKey) {
       throw new Error('Supabase configuration is incomplete');
@@ -23,15 +25,14 @@ export class SupabaseService implements OnModuleInit {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
       },
     });
 
-    // Client pour les opérations admin
     this.supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
-        persistSession: false
+        persistSession: false,
       },
     });
 
@@ -69,20 +70,18 @@ export class SupabaseService implements OnModuleInit {
       throw new Error(`Error uploading file: ${error.message}`);
     }
 
-    const { data: { publicUrl } } = this.supabase.storage
-      .from(bucket)
-      .getPublicUrl(path);
+    const {
+      data: { publicUrl },
+    } = this.supabase.storage.from(bucket).getPublicUrl(path);
 
     return publicUrl;
   }
 
   async deleteFile(bucket: string, path: string): Promise<void> {
-    const { error } = await this.supabase.storage
-      .from(bucket)
-      .remove([path]);
+    const { error } = await this.supabase.storage.from(bucket).remove([path]);
 
     if (error) {
       throw new Error(`Error deleting file: ${error.message}`);
     }
   }
-} 
+}

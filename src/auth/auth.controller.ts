@@ -1,7 +1,21 @@
-import { Controller, Post, Body, Get, Param, HttpCode, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  HttpCode,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { AuthService } from './services/auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -11,16 +25,17 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Inscription d\'un nouvel utilisateur' })
+  @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
   @ApiResponse({
     status: 201,
-    description: 'L\'utilisateur a été créé avec succès',
+    description: "L'utilisateur a été créé avec succès",
     schema: {
       type: 'object',
       properties: {
         message: {
           type: 'string',
-          example: 'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
+          example:
+            'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
         },
         userId: {
           type: 'string',
@@ -29,17 +44,20 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 409, description: 'Un utilisateur avec cet email existe déjà' })
+  @ApiResponse({
+    status: 409,
+    description: 'Un utilisateur avec cet email existe déjà',
+  })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Connexion d\'un utilisateur' })
+  @ApiOperation({ summary: "Connexion d'un utilisateur" })
   @ApiResponse({
     status: 200,
-    description: 'L\'utilisateur a été connecté avec succès',
+    description: "L'utilisateur a été connecté avec succès",
     schema: {
       type: 'object',
       properties: {
@@ -69,7 +87,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  @ApiOperation({ summary: 'Vérification de l\'email via un token' })
+  @ApiOperation({ summary: "Vérification de l'email via un token" })
   @ApiResponse({ status: 200, description: 'Email vérifié avec succès' })
   @ApiResponse({ status: 400, description: 'Token invalide' })
   async verifyEmail(@Body() body: { token: string }) {
@@ -80,19 +98,25 @@ export class AuthController {
     return this.authService.verifyEmail(body.token);
   }
 
-
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Récupérer les informations de l\'utilisateur connecté' })
-  @ApiResponse({ status: 200, description: 'Informations utilisateur récupérées avec succès' })
+  @ApiOperation({
+    summary: "Récupérer les informations de l'utilisateur connecté",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Informations utilisateur récupérées avec succès',
+  })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
   async getMe(@Request() req) {
     try {
       const user = await this.authService.getUserProfile(req.user.sub);
       return { user };
     } catch (error) {
-      throw new UnauthorizedException('Erreur lors de la récupération des informations utilisateur');
+      throw new UnauthorizedException(
+        'Erreur lors de la récupération des informations utilisateur',
+      );
     }
   }
-} 
+}
