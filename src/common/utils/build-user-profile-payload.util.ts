@@ -67,6 +67,7 @@ export function buildUserProfilePayload(
       min_price: null,
       max_price: null,
       preferred_locations: [],
+      // Documents spécifiques au candidat
       id_document_url: null,
       employment_certificate_url: null,
       salary_slips_urls: [],

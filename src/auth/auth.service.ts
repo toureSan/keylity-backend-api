@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { SupabaseService } from '../../common/services/supabase.service';
-import { RegisterDto } from '../dto/register.dto';
-import { LoginDto } from '../dto/login.dto';
+import { SupabaseService } from '../common/services/supabase.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { buildUserProfilePayload } from 'src/common/utils/build-user-profile-payload.util';
@@ -72,11 +72,11 @@ export class AuthService {
             data: {
               first_name: firstName,
               last_name: lastName,
-              role: role,
             },
             emailRedirectTo: `${this.configService.get('app.frontendUrl')}/auth/confirm-email`,
           },
         });
+
 
       if (authError) {
         this.logger.error(`Error during signup: ${authError.message}`);
@@ -90,6 +90,9 @@ export class AuthService {
         );
       }
 
+
+      const userId = authData.user.id;
+
       // Créer l'utilisateur dans la table users
       const { error: dbError } = await this.supabaseService
         .getAdminClient()
@@ -101,7 +104,6 @@ export class AuthService {
             first_name: firstName,
             last_name: lastName,
             is_email_verified: false,
-            role: role,
           },
         ]);
 
@@ -114,29 +116,35 @@ export class AuthService {
         );
       }
 
+      // Insertion dans la table user_roles
+      const { error: roleInsertError } = await this.supabaseService
+        .getAdminClient()
+        .from('user_roles')
+        .insert([{ user_id: userId, role }]);
+
+      if (roleInsertError) {
+        throw new Error(`Erreur insertion user_roles: ${roleInsertError.message}`);
+      }
+
       // Créer le profil avec des champs spécifiques selon le rôle
-      const profilePayload = buildUserProfilePayload(authData.user.id, role);
+      const profilePayload = buildUserProfilePayload(userId, role);
       const { error: profileError } = await this.supabaseService
         .getAdminClient()
         .from('profiles')
         .insert([profilePayload]);
 
       if (profileError) {
-        this.logger.error(
-          `Error creating user profile: ${profileError.message}`,
-        );
-        throw new Error(
-          `Erreur lors de la création du profil: ${profileError.message}`,
-        );
+        throw new Error(`Erreur insertion profil: ${profileError.message}`);
       }
 
-      this.logger.log(`User registered successfully: ${authData.user.id}`);
+      this.logger.log(`Utilisateur ${userId} enregistré avec succès.`);
+
       return {
         message:
           'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
-        userId: authData.user.id,
-        role: role,
-        email: email,
+        userId,
+        role,
+        email,
         redirectTo: `${this.configService.get('app.frontendUrl')}/auth/confirm-email`,
       };
     } catch (error) {
@@ -214,30 +222,36 @@ export class AuthService {
         throw new UnauthorizedException('Email ou mot de passe incorrect');
       }
 
+      const { data: rolesData } = await this.supabaseService
+       .getClient()
+      .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id);
+
+
       // Vérifier si l'email est vérifié
       const { data: userData, error: userError } = await this.supabaseService
         .getClient()
         .from('users')
         .select('is_email_verified')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (userError) {
-        this.logger.error(
-          `Error checking email verification: ${userError.message}`,
-        );
-        throw new Error(
-          `Erreur lors de la vérification de l'email: ${userError.message}`,
-        );
-      }
+        if (userError) {
+          this.logger.error(`Error checking email verification: ${userError.message}`);
+          throw new Error(`Erreur lors de la vérification de l'email: ${userError.message}`);
+        }
 
-      if (!userData.is_email_verified) {
-        this.logger.warn(`Unverified user attempted login: ${email}`);
-        throw new UnauthorizedException(
-          'Veuillez vérifier votre email avant de vous connecter',
-        );
-      }
-
+        if (!userData) {
+          this.logger.warn(`Utilisateur non trouvé pour l'id: ${data.user.id}`);
+          throw new UnauthorizedException('Utilisateur introuvable');
+        }
+        if (!userData.is_email_verified) {
+          this.logger.warn(`Unverified user attempted login: ${email}`);
+          throw new UnauthorizedException(
+            'Veuillez vérifier votre email avant de vous connecter',
+          );
+        }
       // Générer le token JWT
       const payload = {
         sub: data.user.id,
@@ -265,6 +279,8 @@ export class AuthService {
       throw new Error(`Erreur lors de la connexion: ${error.message}`);
     }
   }
+
+  
 
   async verifyEmail(token: string) {
     try {
@@ -332,53 +348,5 @@ export class AuthService {
     }
   }
 
-  async getUserProfile(userId: string) {
-    const { data: user, error } = await this.supabaseService
-      .getClient()
-      .from('users')
-      .select(
-        `
-        id,
-        email,
-        first_name,
-        last_name,
-        is_email_verified,
-        role,
-        profiles (
-          phone_number,
-          address,
-          city,
-          postal_code,
-          bio,
-          avatar_url,
-          agency_name,
-          agency_license,
-          agency_address,
-          agency_phone,
-          preferred_property_types,
-          min_price,
-          max_price,
-          preferred_locations
-        )
-      `,
-      )
-      .eq('id', userId)
-      .single();
 
-    if (error) {
-      throw new UnauthorizedException(
-        'Erreur lors de la récupération des informations utilisateur',
-      );
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      isEmailVerified: user.is_email_verified,
-      role: user.role,
-      profile: user.profiles,
-    };
-  }
 }
