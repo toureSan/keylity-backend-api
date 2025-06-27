@@ -7,11 +7,7 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
-<<<<<<< HEAD
 import { UserRole } from 'src/common/enums/user-role.enum';
-=======
-import { UserRole } from '../auth.service';
->>>>>>> 73de4ff (add change)
 
 export class RegisterDto {
   @ApiProperty({

@@ -1,14 +1,9 @@
 import { config } from 'dotenv';
 import * as path from 'path';
 
-<<<<<<< HEAD
 // Charger le fichier .env approprié
 const envFile =
   process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
-=======
-// Chargement dynamique du bon fichier .env
-const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
->>>>>>> 73de4ff (add change)
 config({ path: path.resolve(process.cwd(), envFile) });
 
 // Définir une URL frontend par défaut si non spécifiée dans le .env
