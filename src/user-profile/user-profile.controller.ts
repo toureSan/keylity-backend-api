@@ -11,6 +11,7 @@ import {
 import { UserProfileService } from './user-profile.service';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('user-profile')
 export class UserProfileController {
@@ -57,7 +58,6 @@ export class UserProfileController {
     this.logger.log(`Onboarding request for user ${userId}`);
   
     try {
-      // Récupération du rôle via Supabase
       const accessToken = req.headers.authorization?.split(' ')[1];
       const userProfile = await this.userProfileService.getUserProfile(userId, accessToken);
   
