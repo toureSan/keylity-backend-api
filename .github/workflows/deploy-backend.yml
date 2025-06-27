@@ -1,4 +1,4 @@
-name: Keylity – Deploy NestJS backend
+name: Keylity - Deploy NestJS backend
 
 on:
   push:
