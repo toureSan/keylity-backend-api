@@ -1,5 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { SupabaseService } from 'src/common/services/supabase.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -110,7 +112,7 @@ export class UserProfileService {
     };
   }
 
-  async completeOnboarding(userId: string, role: string, payload: Record<string, any>) {
+  async completeOnboarding(userId: string, role: string, payload: CompleteOnboardingDto) {
     const client = this.supabaseService.getClient();
 
     // Vérifier les champs nécessaires selon le rôle
@@ -162,5 +164,35 @@ export class UserProfileService {
     }
 
     return { message: 'Onboarding complété avec succès' };
+  }
+
+  async updateProfile(userId: string, updateData: UpdateProfileDto) {
+    const client = this.supabaseService.getClient();
+
+    // Filtrer les champs undefined et null
+    const filteredData = Object.fromEntries(
+      Object.entries(updateData).filter(([_, value]) => value !== undefined && value !== null)
+    );
+
+    if (Object.keys(filteredData).length === 0) {
+      throw new UnauthorizedException('Aucune donnée à mettre à jour');
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .update(filteredData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ERROR] Profile update failed:', error);
+      throw new UnauthorizedException('Erreur lors de la mise à jour du profil');
+    }
+
+    return {
+      message: 'Profil mis à jour avec succès',
+      profile: data
+    };
   }
 }

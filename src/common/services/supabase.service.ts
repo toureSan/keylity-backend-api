@@ -89,7 +89,6 @@ export class SupabaseService implements OnModuleInit {
       },
     });
   }
-  
 
   async deleteFile(bucket: string, path: string): Promise<void> {
     const { error } = await this.supabase.storage.from(bucket).remove([path]);

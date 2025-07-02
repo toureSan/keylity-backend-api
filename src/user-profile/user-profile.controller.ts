@@ -3,6 +3,7 @@ import {
   Get,
   UseGuards,
   Post,
+  Put,
   Body,
   Request,
   UnauthorizedException,
@@ -12,6 +13,8 @@ import { UserProfileService } from './user-profile.service';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 
 @Controller('user-profile')
 export class UserProfileController {
@@ -49,7 +52,7 @@ export class UserProfileController {
   @ApiOperation({
     summary: "Compléter l'onboarding utilisateur",
   })
-  @ApiBody({ type: Object })
+  @ApiBody({ type: CompleteOnboardingDto })
   @ApiResponse({ status: 200, description: 'Onboarding complété avec succès' })
   @ApiResponse({ status: 400, description: 'Requête invalide' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
@@ -74,6 +77,30 @@ export class UserProfileController {
       this.logger.error(`Error in completeOnboarding: ${error.message}`, body);
       throw new UnauthorizedException(
         "Erreur lors de l'enregistrement de l'onboarding utilisateur",
+      );
+    }
+  }
+
+  @Put('update')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mettre à jour les informations personnelles',
+  })
+  @ApiBody({ type: UpdateProfileDto })
+  @ApiResponse({ status: 200, description: 'Profil mis à jour avec succès' })
+  @ApiResponse({ status: 400, description: 'Requête invalide' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async updateProfile(@Request() req, @Body() updateData: UpdateProfileDto) {
+    const userId = req.user.sub;
+    this.logger.log(`Update profile request for user ${userId}`);
+
+    try {
+      return await this.userProfileService.updateProfile(userId, updateData);
+    } catch (error) {
+      this.logger.error(`Error in updateProfile: ${error.message}`, updateData);
+      throw new UnauthorizedException(
+        'Erreur lors de la mise à jour du profil utilisateur',
       );
     }
   }
