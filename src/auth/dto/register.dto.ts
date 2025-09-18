@@ -7,7 +7,7 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
-import { UserRole } from '../auth.service';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class RegisterDto {
   @ApiProperty({
@@ -49,7 +49,7 @@ export class RegisterDto {
   @IsString()
   lastName: string;
 
-  @ApiProperty({ enum: UserRole, default: UserRole.USER })
+  @ApiProperty({ enum: UserRole, default: UserRole.CANDIDAT })
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;

@@ -1,4 +1,10 @@
 {
   "singleQuote": true,
+
+  "trailingComma": "all",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "endOfLine": "lf",
   "trailingComma": "all"
+
 }

@@ -3,18 +3,15 @@ import {
   Post,
   Body,
   Get,
-  Param,
   HttpCode,
   UseGuards,
   Request,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -97,27 +94,5 @@ export class AuthController {
     }
 
     return this.authService.verifyEmail(body.token);
-  }
-
-  @Get('me')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: "Récupérer les informations de l'utilisateur connecté",
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Informations utilisateur récupérées avec succès',
-  })
-  @ApiResponse({ status: 401, description: 'Non authentifié' })
-  async getMe(@Request() req) {
-    try {
-      const user = await this.authService.getUserProfile(req.user.sub);
-      return { user };
-    } catch (error) {
-      throw new UnauthorizedException(
-        'Erreur lors de la récupération des informations utilisateur',
-      );
-    }
   }
 }

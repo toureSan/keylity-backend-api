@@ -1,17 +1,18 @@
-import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/services/supabase.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
+import { UserRole } from 'src/common/enums/user-role.enum';
+import { buildUserProfilePayload } from 'src/common/utils/build-user-profile-payload.util';
 import * as jwt from 'jsonwebtoken';
-// Définition des rôles disponibles
-export enum UserRole {
-  ADMIN = 'admin',
-  AGENT = 'agent',
-  USER = 'user'
-}
 
 @Injectable()
 export class AuthService {
@@ -24,27 +25,41 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, firstName, lastName, role = UserRole.USER } = registerDto;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      role = UserRole.CANDIDAT,
+    } = registerDto;
 
     try {
-      this.logger.log(`Attempting to register user with email: ${email} and role: ${role}`);
+      this.logger.log(
+        `Attempting to register user with email: ${email} and role: ${role}`,
+      );
 
-      // Vérifier si l'utilisateur existe déjà
-      const { data: existingUser, error: checkError } = await this.supabaseService
-        .getClient()
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+      const { data: existingUser, error: checkError } =
+        await this.supabaseService
+          .getClient()
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .single();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        this.logger.error(`Error checking existing user: ${checkError.message}`);
-        throw new Error(`Erreur lors de la vérification de l'utilisateur: ${checkError.message}`);
+        this.logger.error(
+          `Error checking existing user: ${checkError.message}`,
+        );
+        throw new Error(
+          `Erreur lors de la vérification de l'utilisateur: ${checkError.message}`,
+        );
       }
 
       if (existingUser) {
         this.logger.warn(`User with email ${email} already exists`);
-        throw new ConflictException('Un utilisateur avec cet email existe déjà');
+        throw new ConflictException(
+          'Un utilisateur avec cet email existe déjà',
+        );
       }
 
       // Créer l'utilisateur dans Supabase Auth avec redirection
@@ -57,11 +72,11 @@ export class AuthService {
             data: {
               first_name: firstName,
               last_name: lastName,
-              role: role,
             },
             emailRedirectTo: `${this.configService.get('app.frontendUrl')}/auth/confirm-email`,
           },
         });
+
 
       if (authError) {
         this.logger.error(`Error during signup: ${authError.message}`);
@@ -70,9 +85,15 @@ export class AuthService {
 
       if (!authData.user) {
         this.logger.error('No user data returned from signup');
-        throw new Error('Erreur l\'inscription: Aucune donnée utilisateur retournée');
+        throw new Error(
+          "Erreur l'inscription: Aucune donnée utilisateur retournée",
+        );
       }
 
+
+      const userId = authData.user.id;
+
+      // Créer l'utilisateur dans la table users
       const { error: dbError } = await this.supabaseService
         .getAdminClient()
         .from('users')
@@ -83,57 +104,48 @@ export class AuthService {
             first_name: firstName,
             last_name: lastName,
             is_email_verified: false,
-            role: role,
           },
         ]);
 
       if (dbError) {
-        this.logger.error(`Error creating user in database: ${dbError.message}`);
-        throw new Error(`Erreur lors de la création de l'utilisateur: ${dbError.message}`);
+        this.logger.error(
+          `Error creating user in database: ${dbError.message}`,
+        );
+        throw new Error(
+          `Erreur lors de la création de l'utilisateur: ${dbError.message}`,
+        );
+      }
+
+      // Insertion dans la table user_roles
+      const { error: roleInsertError } = await this.supabaseService
+        .getAdminClient()
+        .from('user_roles')
+        .insert([{ user_id: userId, role }]);
+
+      if (roleInsertError) {
+        throw new Error(`Erreur insertion user_roles: ${roleInsertError.message}`);
       }
 
       // Créer le profil avec des champs spécifiques selon le rôle
+      const profilePayload = buildUserProfilePayload(userId, role);
       const { error: profileError } = await this.supabaseService
         .getAdminClient()
         .from('profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            // Champs communs
-            phone_number: null,
-            address: null,
-            city: null,
-            postal_code: null,
-            bio: null,
-            avatar_url: null,
-            // Champs spécifiques aux agents
-            ...(role === UserRole.AGENT && {
-              agency_name: null,
-              agency_license: null,
-              agency_address: null,
-              agency_phone: null,
-            }),
-            // Champs spécifiques aux candidats
-            ...(role === UserRole.USER && {
-              preferred_property_types: [],
-              min_price: null,
-              max_price: null,
-              preferred_locations: [],
-            }),
-          },
-        ]);
+        .insert([profilePayload]);
 
       if (profileError) {
-        this.logger.error(`❌ Supabase profile insert failed:`, profileError);
+        this.logger.error(`Error creating user profile: ${profileError.message}`);
         throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
       }
 
-      this.logger.log(`User registered successfully: ${authData.user.id}`);
+      this.logger.log(`Utilisateur ${userId} enregistré avec succès.`);
+
       return {
-        message: 'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
-        userId: authData.user.id,
-        role: role,
-        email: email,
+        message:
+          'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
+        userId,
+        role,
+        email,
         redirectTo: `${this.configService.get('app.frontendUrl')}/auth/confirm-email`,
       };
     } catch (error) {
@@ -211,24 +223,36 @@ export class AuthService {
         throw new UnauthorizedException('Email ou mot de passe incorrect');
       }
 
+      const { data: rolesData } = await this.supabaseService
+       .getClient()
+      .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id);
+
+
       // Vérifier si l'email est vérifié
       const { data: userData, error: userError } = await this.supabaseService
         .getClient()
         .from('users')
         .select('is_email_verified')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (userError) {
-        this.logger.error(`Error checking email verification: ${userError.message}`);
-        throw new Error(`Erreur lors de la vérification de l'email: ${userError.message}`);
-      }
+        if (userError) {
+          this.logger.error(`Error checking email verification: ${userError.message}`);
+          throw new Error(`Erreur lors de la vérification de l'email: ${userError.message}`);
+        }
 
-      if (!userData.is_email_verified) {
-        this.logger.warn(`Unverified user attempted login: ${email}`);
-        throw new UnauthorizedException('Veuillez vérifier votre email avant de vous connecter');
-      }
-
+        if (!userData) {
+          this.logger.warn(`Utilisateur non trouvé pour l'id: ${data.user.id}`);
+          throw new UnauthorizedException('Utilisateur introuvable');
+        }
+        if (!userData.is_email_verified) {
+          this.logger.warn(`Unverified user attempted login: ${email}`);
+          throw new UnauthorizedException(
+            'Veuillez vérifier votre email avant de vous connecter',
+          );
+        }
       // Générer le token JWT
       const payload = {
         sub: data.user.id,
@@ -257,6 +281,8 @@ export class AuthService {
     }
   }
 
+  
+
   async verifyEmail(token: string) {
     try {
       this.logger.log('Décodage du token de vérification...');
@@ -271,7 +297,9 @@ export class AuthService {
       const userId = payload.sub;
       const userEmail = payload.email;
 
-      this.logger.log(`Token décodé avec succès. userId=${userId}, email=${userEmail}`);
+      this.logger.log(
+        `Token décodé avec succès. userId=${userId}, email=${userEmail}`,
+      );
 
       // 2. Vérifier si l'utilisateur existe
       const { data: user, error } = await this.supabaseService
@@ -295,7 +323,9 @@ export class AuthService {
           .eq('id', userId);
 
         if (updateError) {
-          this.logger.error(`Erreur lors de la mise à jour de la vérification : ${updateError.message}`);
+          this.logger.error(
+            `Erreur lors de la mise à jour de la vérification : ${updateError.message}`,
+          );
           throw new Error('Erreur lors de la mise à jour de la vérification');
         }
 
@@ -306,60 +336,18 @@ export class AuthService {
         message: 'Email vérifié avec succès',
         user: {
           id: userId,
-          email: userEmail
+          email: userEmail,
         },
         access_token: token,
         isVerified: true,
-        redirectTo: `${this.configService.get('app.frontendUrl')}/dashboard`
+        redirectTo: `${this.configService.get('app.frontendUrl')}/dashboard`,
       };
     } catch (error) {
-      throw new UnauthorizedException('Erreur lors de la vérification de l\'email');
+      throw new UnauthorizedException(
+        "Erreur lors de la vérification de l'email",
+      );
     }
   }
 
-  async getUserProfile(userId: string) {
-    const { data: user, error } = await this.supabaseService
-      .getClient()
-      .from('users')
-      .select(`
-        id,
-        email,
-        first_name,
-        last_name,
-        is_email_verified,
-        role,
-        profiles (
-          phone_number,
-          address,
-          city,
-          postal_code,
-          bio,
-          avatar_url,
-          agency_name,
-          agency_license,
-          agency_address,
-          agency_phone,
-          preferred_property_types,
-          min_price,
-          max_price,
-          preferred_locations
-        )
-      `)
-      .eq('id', userId)
-      .single();
 
-    if (error) {
-      throw new UnauthorizedException('Erreur lors de la récupération des informations utilisateur');
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      isEmailVerified: user.is_email_verified,
-      role: user.role,
-      profile: user.profiles
-    };
-  }
-} 
+}
