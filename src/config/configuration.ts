@@ -6,7 +6,6 @@ const envFile =
   process.env.NODE_ENV === 'production' ? '.env' : '.env.development';
 config({ path: path.resolve(process.cwd(), envFile) });
 
-// Définir une URL frontend par défaut si non spécifiée dans le .env
 const defaultFrontendUrl =
   process.env.NODE_ENV === 'production'
     ? 'https://keylity.ch'

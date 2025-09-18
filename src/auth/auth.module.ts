@@ -15,15 +15,15 @@ import { SupabaseService } from '../common/services/supabase.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('jwt.secret'),
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn') || '24h',
+          expiresIn: configService.get<string>('JWT_EXPIRATION') || '24h',
         },
       }),
     }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, SupabaseService],
-  exports: [AuthService, JwtStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}

@@ -7,20 +7,28 @@ export class SupabaseService implements OnModuleInit {
   private supabase: SupabaseClient;
   private supabaseAdmin: SupabaseClient;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   onModuleInit() {
-    const supabaseUrl = this.configService.get<string>('supabase.url');
-    const supabaseKey = this.configService.get<string>('supabase.key');
-    const supabaseServiceKey = this.configService.get<string>(
-      'supabase.serviceKey',
-    );
+    const supabaseUrl =
+      this.configService.get<string>('SUPABASE_URL') ||
+      this.configService.get<string>('supabase.url');
+
+    const supabaseKey =
+      this.configService.get<string>('SUPABASE_KEY') ||
+      this.configService.get<string>('supabase.key');
+
+    const supabaseServiceKey =
+      this.configService.get<string>('SUPABASE_SERVICE_KEY') ||
+      this.configService.get<string>('supabase.serviceKey');
 
     if (!supabaseUrl || !supabaseKey || !supabaseServiceKey) {
-      throw new Error('Supabase configuration is incomplete');
+      throw new Error(
+        `❌ Supabase configuration is incomplete. url=${supabaseUrl}, anonKey=${!!supabaseKey}, serviceKey=${!!supabaseServiceKey}`,
+      );
     }
 
-    // Client pour les opérations utilisateur
+    // Client public (utilisateur)
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: true,
@@ -29,6 +37,7 @@ export class SupabaseService implements OnModuleInit {
       },
     });
 
+    // Client admin (service role)
     this.supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -36,7 +45,7 @@ export class SupabaseService implements OnModuleInit {
       },
     });
 
-    console.log('Supabase clients initialized');
+    console.log('✅ Supabase clients initialized with URL:', supabaseUrl);
   }
 
   getClient(): SupabaseClient {
@@ -51,6 +60,28 @@ export class SupabaseService implements OnModuleInit {
       throw new Error('Supabase admin client not initialized');
     }
     return this.supabaseAdmin;
+  }
+
+  getClientWithUser(accessToken: string): SupabaseClient {
+    const supabaseUrl =
+      this.configService.get<string>('SUPABASE_URL') ||
+      this.configService.get<string>('supabase.url');
+
+    const supabaseAnonKey =
+      this.configService.get<string>('SUPABASE_KEY') ||
+      this.configService.get<string>('supabase.key');
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('❌ Supabase client (with user) configuration is incomplete');
+    }
+
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    });
   }
 
   async uploadFile(
@@ -92,7 +123,6 @@ export class SupabaseService implements OnModuleInit {
 
   async deleteFile(bucket: string, path: string): Promise<void> {
     const { error } = await this.supabase.storage.from(bucket).remove([path]);
-
     if (error) {
       throw new Error(`Error deleting file: ${error.message}`);
     }

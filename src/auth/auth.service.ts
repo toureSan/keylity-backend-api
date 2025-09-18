@@ -134,6 +134,8 @@ export class AuthService {
         .insert([profilePayload]);
 
       if (profileError) {
+        this.logger.error(`Error creating user profile: ${profileError.message}`);
+        throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
         throw new Error(`Erreur insertion profil: ${profileError.message}`);
       }
 
