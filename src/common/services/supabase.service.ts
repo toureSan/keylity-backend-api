@@ -108,18 +108,7 @@ export class SupabaseService implements OnModuleInit {
     return publicUrl;
   }
 
-  getClientWithUser(accessToken: string): SupabaseClient {
-    const supabaseUrl = this.configService.get<string>('supabase.url');
-    const supabaseAnonKey = this.configService.get<string>('supabase.key');
-  
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-    });
-  }
+
 
   async deleteFile(bucket: string, path: string): Promise<void> {
     const { error } = await this.supabase.storage.from(bucket).remove([path]);
