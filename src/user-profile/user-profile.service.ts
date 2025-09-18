@@ -1,5 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { SupabaseService } from 'src/common/services/supabase.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -110,14 +112,19 @@ export class UserProfileService {
     };
   }
 
-  async completeOnboarding(userId: string, role: string, payload: Record<string, any>) {
+  async completeOnboarding(userId: string, role: string, payload: CompleteOnboardingDto) {
     const client = this.supabaseService.getClient();
 
     // Vérifier les champs nécessaires selon le rôle
     const requiredFieldsCandidat = [
       'preferred_property_types', 'min_price', 'max_price', 'preferred_locations',
       'id_document_url', 'employment_certificate_url', 'salary_slips_urls',
-      'rental_attestation_url', 'debt_certificate_url', 'residence_permit_url', 'guarantor_documents_urls'
+      'rental_attestation_url', 'debt_certificate_url', 'residence_permit_url', 'guarantor_documents_urls',
+      'phone_number', 'address', 'city', 'postal_code', 'nationality', 'marital_status',
+      'number_of_children', 'phone', 'email', 'current_address', 'zip_code',
+      'address_since', 'moving_reason', 'professional_status', 'employer', 'position',
+      'work_rate', 'contract_type', 'contract_start_date', 'monthly_income',
+      'partner_income', 'other_income'
     ];
 
     const requiredFieldsAnnonceur = [
@@ -127,7 +134,9 @@ export class UserProfileService {
 
     const requiredFieldsCommon = [
       'first_name', 'last_name', 'email', 'phone', 'address', 'zip_code',
-      'birth_date', 'nationality', 'professional_status'
+      'birth_date', 'nationality', 'professional_status',
+      'bio', 'avatar_url',
+      'profile_photo_url', 'preferred_language',
     ];
 
     const allRequiredFields = [
@@ -155,5 +164,35 @@ export class UserProfileService {
     }
 
     return { message: 'Onboarding complété avec succès' };
+  }
+
+  async updateProfile(userId: string, updateData: UpdateProfileDto) {
+    const client = this.supabaseService.getClient();
+
+    // Filtrer les champs undefined et null
+    const filteredData = Object.fromEntries(
+      Object.entries(updateData).filter(([_, value]) => value !== undefined && value !== null)
+    );
+
+    if (Object.keys(filteredData).length === 0) {
+      throw new UnauthorizedException('Aucune donnée à mettre à jour');
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .update(filteredData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ERROR] Profile update failed:', error);
+      throw new UnauthorizedException('Erreur lors de la mise à jour du profil');
+    }
+
+    return {
+      message: 'Profil mis à jour avec succès',
+      profile: data
+    };
   }
 }

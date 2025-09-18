@@ -1,4 +1,4 @@
-name: Keylity – Deploy NestJS backend
+name: Keylity - Deploy NestJS backend
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "Deploying to PRODUCTION..."
-            ssh -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << 'EOF'
+            ssh -o StrictHostKeyChecking=no ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} << EOF
 cd /var/www/keylity-backend-prod
 git pull origin main
 npm ci
@@ -40,7 +40,7 @@ NODE_ENV=production pm2 restart keylity-prod
 EOF
           elif [ "${GITHUB_REF}" = "refs/heads/develop" ]; then
             echo "Deploying to DEVELOPMENT..."
-            ssh -o StrictHostKeyChecking=no ${{ secrets.DEV_SSH_USER }}@${{ secrets.DEV_SSH_HOST }} << 'EOF'
+            ssh -o StrictHostKeyChecking=no ${{ secrets.DEV_SSH_USER }}@${{ secrets.DEV_SSH_HOST }} << EOF
 cd /var/www/keylity-backend-dev
 git pull origin develop
 npm ci
