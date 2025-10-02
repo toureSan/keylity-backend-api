@@ -5,7 +5,7 @@ export function buildUserProfilePayload(
   role: UserRole,
 ): Record<string, any> {
   const baseProfile = {
-    id: userId,
+    user_id: userId,
     first_name: null,
     last_name: null,
     birth_date: null,

@@ -8,7 +8,7 @@ export class UserProfileService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async getUserProfile(userId: string, accessToken: string) {
-    const client = this.supabaseService.getClientWithUser(accessToken);
+    const client = this.supabaseService.getAdminClient();
 
     const { data: profileData, error: profileError } = await client
       .from('profiles')
@@ -113,7 +113,7 @@ export class UserProfileService {
   }
 
   async completeOnboarding(userId: string, role: string, payload: CompleteOnboardingDto) {
-    const client = this.supabaseService.getClient();
+    const client = this.supabaseService.getAdminClient();
 
     // Vérifier les champs nécessaires selon le rôle
     const requiredFieldsCandidat = [
@@ -144,6 +144,7 @@ export class UserProfileService {
       ...(role === 'candidat' ? requiredFieldsCandidat : []),
       ...(role === 'annonceur' ? requiredFieldsAnnonceur : [])
     ];
+    
     const missingFields = allRequiredFields.filter(field => {
       const value = payload[field];
       return value === undefined || value === null || value === '';
@@ -155,7 +156,7 @@ export class UserProfileService {
 
     const { error } = await client
       .from('profiles')
-      .update({ ...payload, is_onboarded: true })
+      .update(payload)
       .eq('id', userId);
 
     if (error) {
@@ -167,7 +168,7 @@ export class UserProfileService {
   }
 
   async updateProfile(userId: string, updateData: UpdateProfileDto) {
-    const client = this.supabaseService.getClient();
+    const client = this.supabaseService.getAdminClient();
 
     // Filtrer les champs undefined et null
     const filteredData = Object.fromEntries(

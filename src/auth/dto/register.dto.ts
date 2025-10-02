@@ -35,21 +35,12 @@ export class RegisterDto {
   )
   password: string;
 
-  @ApiProperty({
-    example: 'John',
-    description: "Le prénom de l'utilisateur",
+  @ApiProperty({ 
+    enum: UserRole, 
+    default: UserRole.CANDIDAT,
+    description: "Le rôle de l'utilisateur (par défaut: CANDIDAT)",
+    required: false
   })
-  @IsString()
-  firstName: string;
-
-  @ApiProperty({
-    example: 'Doe',
-    description: "Le nom de famille de l'utilisateur",
-  })
-  @IsString()
-  lastName: string;
-
-  @ApiProperty({ enum: UserRole, default: UserRole.CANDIDAT })
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;

@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // 👇 Charger les origins dynamiquement
+  // Charger les origins dynamiquement
   const allowedOrigins = configService
     .get<string>('CORS_ORIGIN')
     ?.split(',') ?? ['http://localhost:4000'];
@@ -35,8 +35,5 @@ async function bootstrap() {
   const port = configService.get('port') || 3000;
   await app.listen(port);
 
-  console.log('✅ App started on port:', port);
-  console.log('✅ Allowed origins:', allowedOrigins);
-  console.log('✅ NODE_ENV:', process.env.NODE_ENV);
 }
 bootstrap();

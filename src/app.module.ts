@@ -7,13 +7,15 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserProfileModule } from './user-profile/user-profile.module';
+import { UploadModule } from './upload/upload.module';
+import { ApplicationModule } from './application/application.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      envFilePath: `.env.${process.env.NODE_ENV || 'developpement'}`,
+      envFilePath: '.env',
     }),
     ThrottlerModule.forRoot([
       {
@@ -24,6 +26,8 @@ import { UserProfileModule } from './user-profile/user-profile.module';
     HealthModule,
     AuthModule,
     UserProfileModule,
+    UploadModule,
+    ApplicationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

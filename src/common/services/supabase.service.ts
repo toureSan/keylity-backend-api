@@ -1,15 +1,17 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
-export class SupabaseService implements OnModuleInit {
+export class SupabaseService {
   private supabase: SupabaseClient;
   private supabaseAdmin: SupabaseClient;
 
-  constructor(private readonly configService: ConfigService) { }
-
-  onModuleInit() {
+  constructor(private readonly configService: ConfigService) {
     const supabaseUrl =
       this.configService.get<string>('SUPABASE_URL') ||
       this.configService.get<string>('supabase.url');
@@ -23,17 +25,16 @@ export class SupabaseService implements OnModuleInit {
       this.configService.get<string>('supabase.serviceKey');
 
     if (!supabaseUrl || !supabaseKey || !supabaseServiceKey) {
-      throw new Error(
-        `❌ Supabase configuration is incomplete. url=${supabaseUrl}, anonKey=${!!supabaseKey}, serviceKey=${!!supabaseServiceKey}`,
+      throw new InternalServerErrorException(
+        `Supabase configuration is incomplete. url=${supabaseUrl}, anonKey=${!!supabaseKey}, serviceKey=${!!supabaseServiceKey}`,
       );
     }
 
     // Client public (utilisateur)
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
+        autoRefreshToken: false,
+        persistSession: false,
       },
     });
 
@@ -45,24 +46,33 @@ export class SupabaseService implements OnModuleInit {
       },
     });
 
-    console.log('✅ Supabase clients initialized with URL:', supabaseUrl);
   }
 
   getClient(): SupabaseClient {
     if (!this.supabase) {
-      throw new Error('Supabase client not initialized');
+      throw new InternalServerErrorException('Supabase client not initialized');
     }
     return this.supabase;
   }
 
   getAdminClient(): SupabaseClient {
     if (!this.supabaseAdmin) {
-      throw new Error('Supabase admin client not initialized');
+      throw new InternalServerErrorException(
+        'Supabase admin client not initialized',
+      );
     }
     return this.supabaseAdmin;
   }
 
-  getClientWithUser(accessToken: string): SupabaseClient {
+  /**
+   * Crée un client Supabase lié à un utilisateur authentifié
+   * et valide le token avant de le retourner.
+   */
+  async getClientWithUser(accessToken: string): Promise<SupabaseClient> {
+    if (!accessToken) {
+      throw new BadRequestException('Access token is required');
+    }
+
     const supabaseUrl =
       this.configService.get<string>('SUPABASE_URL') ||
       this.configService.get<string>('supabase.url');
@@ -72,16 +82,26 @@ export class SupabaseService implements OnModuleInit {
       this.configService.get<string>('supabase.key');
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('❌ Supabase client (with user) configuration is incomplete');
+      throw new InternalServerErrorException(
+        'Supabase client (with user) configuration is incomplete',
+      );
     }
 
-    return createClient(supabaseUrl, supabaseAnonKey, {
+    const client = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       },
     });
+
+    // Vérifie que le token est valide
+    const { data, error } = await client.auth.getUser(accessToken);
+    if (error || !data.user) {
+      throw new BadRequestException('Invalid or expired access token');
+    }
+
+    return client;
   }
 
   async uploadFile(
@@ -90,7 +110,7 @@ export class SupabaseService implements OnModuleInit {
     file: Buffer,
     contentType: string,
   ): Promise<string> {
-    const { data, error } = await this.supabase.storage
+    const { error } = await this.supabase.storage
       .from(bucket)
       .upload(path, file, {
         contentType,
@@ -98,7 +118,9 @@ export class SupabaseService implements OnModuleInit {
       });
 
     if (error) {
-      throw new Error(`Error uploading file: ${error.message}`);
+      throw new BadRequestException(
+        `Error uploading file: ${error.message}`,
+      );
     }
 
     const {
@@ -108,12 +130,12 @@ export class SupabaseService implements OnModuleInit {
     return publicUrl;
   }
 
-
-
   async deleteFile(bucket: string, path: string): Promise<void> {
     const { error } = await this.supabase.storage.from(bucket).remove([path]);
     if (error) {
-      throw new Error(`Error deleting file: ${error.message}`);
+      throw new BadRequestException(
+        `Error deleting file: ${error.message}`,
+      );
     }
   }
 }
