@@ -10,8 +10,8 @@ async function bootstrap() {
 
   // Charger les origins dynamiquement
   const allowedOrigins = configService
-    .get<string>('CORS_ORIGIN')
-    ?.split(',') ?? ['http://localhost:4000'];
+    .get<string>('cors.origin')
+    ?.split(',') ?? ['http://localhost:4000', 'https://keylity.ch'];
 
   app.enableCors({
     origin: allowedOrigins,

@@ -33,4 +33,10 @@ export default () => ({
   app: {
     frontendUrl: process.env.FRONTEND_URL || defaultFrontendUrl,
   },
+
+  cors: {
+    origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' 
+      ? 'https://keylity.ch' 
+      : 'http://localhost:4000'),
+  },
 });
