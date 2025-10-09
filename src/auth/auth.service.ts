@@ -160,14 +160,12 @@ export class AuthService {
     try {
       this.logger.log(`Verifying email with token: ${token.substring(0, 10)}...`);
 
-      // Vérifier le token avec Supabase
+      // Vérifier le token avec Supabase (access_token)
       const { data: authData, error: authError } =
-        await this.supabaseService.getAdminClient().auth.verifyOtp({
-          token_hash: token,
-          type: 'email',
-        });
+        await this.supabaseService.getAdminClient().auth.getUser(token);
 
       if (authError) {
+        this.logger.error(`Token verification failed: ${authError.message}`);
         throw new UnauthorizedException('Token de vérification invalide');
       }
 
@@ -176,6 +174,27 @@ export class AuthService {
       }
 
       const userId = authData.user.id;
+
+      // Vérifier si l'email est déjà vérifié
+      if (authData.user.email_confirmed_at) {
+        this.logger.log(`Email already verified for user: ${userId}`);
+        
+        // Mettre à jour le statut dans notre base de données
+        const { error: updateError } = await this.supabaseService.getAdminClient()
+          .from('users')
+          .update({ is_email_verified: true })
+          .eq('id', userId);
+
+        if (updateError) {
+          this.logger.error(`Error updating email verification: ${updateError.message}`);
+        }
+
+        return {
+          message: 'Email déjà vérifié avec succès',
+          userId,
+          email: authData.user.email,
+        };
+      }
 
       // Mettre à jour le statut de vérification
       const { error: updateError } = await this.supabaseService.getAdminClient()
