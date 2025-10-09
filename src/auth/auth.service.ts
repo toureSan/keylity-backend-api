@@ -158,14 +158,27 @@ export class AuthService {
 
   async verifyEmail(token: string) {
     try {
-      this.logger.log(`Verifying email with token: ${token.substring(0, 10)}...`);
+      const supabaseUrl = this.configService.get<string>('SUPABASE_URL') || 
+                         this.configService.get<string>('supabase.url');
+      const supabaseAnonKey = this.configService.get<string>('SUPABASE_KEY') || 
+                             this.configService.get<string>('supabase.key');
 
-      // Vérifier le token avec Supabase (access_token)
-      const { data: authData, error: authError } =
-        await this.supabaseService.getAdminClient().auth.getUser(token);
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Configuration Supabase manquante');
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      });
+
+      const { data: authData, error: authError } = await tempClient.auth.getUser();
 
       if (authError) {
-        this.logger.error(`Token verification failed: ${authError.message}`);
         throw new UnauthorizedException('Token de vérification invalide');
       }
 
@@ -175,47 +188,49 @@ export class AuthService {
 
       const userId = authData.user.id;
 
-      // Vérifier si l'email est déjà vérifié
       if (authData.user.email_confirmed_at) {
-        this.logger.log(`Email already verified for user: ${userId}`);
-        
-        // Mettre à jour le statut dans notre base de données
-        const { error: updateError } = await this.supabaseService.getAdminClient()
-          .from('users')
-          .update({ is_email_verified: true })
-          .eq('id', userId);
-
-        if (updateError) {
-          this.logger.error(`Error updating email verification: ${updateError.message}`);
-        }
+        const payload = { sub: userId, email: authData.user.email };
+        const access_token = this.jwtService.sign(payload);
 
         return {
           message: 'Email déjà vérifié avec succès',
           userId,
           email: authData.user.email,
+          access_token,
+          user: {
+            id: userId,
+            email: authData.user.email,
+            is_email_verified: true,
+          },
         };
       }
 
-      // Mettre à jour le statut de vérification
       const { error: updateError } = await this.supabaseService.getAdminClient()
         .from('users')
         .update({ is_email_verified: true })
         .eq('id', userId);
 
       if (updateError) {
-        this.logger.error(`Error updating email verification: ${updateError.message}`);
-        throw new Error('Erreur lors de la mise à jour du statut de vérification');
+        if (!updateError.message.includes('duplicate') && !updateError.message.includes('already')) {
+          throw new Error('Erreur lors de la mise à jour du statut de vérification');
+        }
       }
 
-      this.logger.log(`Email verified successfully for user: ${userId}`);
+      const payload = { sub: userId, email: authData.user.email };
+      const access_token = this.jwtService.sign(payload);
 
       return {
         message: 'Email vérifié avec succès',
         userId,
         email: authData.user.email,
+        access_token,
+        user: {
+          id: userId,
+          email: authData.user.email,
+          is_email_verified: true,
+        },
       };
     } catch (error) {
-      this.logger.error(`Email verification error: ${error.message}`);
       if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Erreur lors de la vérification de l\'email');
     }
