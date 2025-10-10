@@ -71,6 +71,7 @@ export function buildUserProfilePayload(
       id_document_url: null,
       employment_certificate_url: null,
       salary_slips_urls: [],
+      bank_statements_urls: [],
       rental_attestation_url: null,
       debt_certificate_url: null,
       residence_permit_url: null,

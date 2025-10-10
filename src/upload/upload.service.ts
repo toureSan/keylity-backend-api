@@ -11,22 +11,27 @@ export class UploadService {
     file: Buffer,
     contentType: string,
   ): Promise<string> {
-    const { error } = await this.supabaseService.getAdminClient().storage
-      .from(bucket)
-      .upload(path, file, {
-        contentType,
-        upsert: true,
-      });
 
-    if (error) {
-      throw new Error(`Error uploading file: ${error.message}`);
+    try {
+      const { error } = await this.supabaseService.getAdminClient().storage
+        .from(bucket)
+        .upload(path, file, {
+          contentType,
+          upsert: true,
+        });
+
+      if (error) {
+        throw new Error(`Error uploading file: ${error.message}`);
+      }
+
+      const {
+        data: { publicUrl },
+      } = this.supabaseService.getAdminClient().storage.from(bucket).getPublicUrl(path);
+
+      return publicUrl;
+    } catch (error) {
+      throw error;
     }
-
-    const {
-      data: { publicUrl },
-    } = this.supabaseService.getAdminClient().storage.from(bucket).getPublicUrl(path);
-
-    return publicUrl;
   }
 
   async deleteFile(bucket: string, path: string): Promise<void> {

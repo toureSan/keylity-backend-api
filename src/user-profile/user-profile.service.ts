@@ -21,17 +21,19 @@ export class UserProfileService {
       throw new UnauthorizedException('Impossible de récupérer le profil');
     }
 
+    // Essayer de récupérer les rôles depuis user_roles, sinon utiliser user_type
+    let roles: string[] = [];
     const { data: rolesData, error: roleError } = await client
       .from('user_roles')
       .select('role')
       .eq('user_id', userId);
 
     if (roleError || !rolesData) {
-      console.error('[DEBUG] Supabase role error:', roleError);
-      throw new UnauthorizedException('Impossible de récupérer les rôles');
+      // Utiliser le user_type du profil comme rôle par défaut
+      roles = profileData.user_type ? [profileData.user_type] : ['candidat'];
+    } else {
+      roles = rolesData.map((r) => r.role);
     }
-
-    const roles = rolesData.map((r) => r.role);
 
     const userInfo = {
       id: userId,
@@ -51,6 +53,7 @@ export class UserProfileService {
         id_document_url: profileData.id_document_url,
         employment_certificate_url: profileData.employment_certificate_url,
         salary_slips_urls: profileData.salary_slips_urls,
+        bank_statements_urls: profileData.bank_statements_urls,
         rental_attestation_url: profileData.rental_attestation_url,
         debt_certificate_url: profileData.debt_certificate_url,
         residence_permit_url: profileData.residence_permit_url,
@@ -113,37 +116,19 @@ export class UserProfileService {
   }
 
   async completeOnboarding(userId: string, role: string, payload: CompleteOnboardingDto) {
+    
     const client = this.supabaseService.getAdminClient();
 
-    // Vérifier les champs nécessaires selon le rôle
+    // Vérifier les champs nécessaires selon le rôle (seulement les champs vraiment obligatoires)
     const requiredFieldsCandidat = [
-      'preferred_property_types', 'min_price', 'max_price', 'preferred_locations',
-      'id_document_url', 'employment_certificate_url', 'salary_slips_urls',
-      'rental_attestation_url', 'debt_certificate_url', 'residence_permit_url', 'guarantor_documents_urls',
-      'phone_number', 'address', 'city', 'postal_code', 'nationality', 'marital_status',
-      'number_of_children', 'phone', 'email', 'current_address', 'zip_code',
-      'address_since', 'moving_reason', 'professional_status', 'employer', 'position',
-      'work_rate', 'contract_type', 'contract_start_date', 'monthly_income',
-      'partner_income', 'other_income'
+      'first_name', 'last_name', 'email', 'phone'
     ];
 
     const requiredFieldsAnnonceur = [
-      'agency_name', 'agency_license', 'agency_address', 'agency_phone',
-      'owner_status', 'number_of_properties', 'property_relation'
+      'first_name', 'last_name', 'email', 'phone', 'preferred_language'
     ];
 
-    const requiredFieldsCommon = [
-      'first_name', 'last_name', 'email', 'phone', 'address', 'zip_code',
-      'birth_date', 'nationality', 'professional_status',
-      'bio', 'avatar_url',
-      'profile_photo_url', 'preferred_language',
-    ];
-
-    const allRequiredFields = [
-      ...requiredFieldsCommon,
-      ...(role === 'candidat' ? requiredFieldsCandidat : []),
-      ...(role === 'annonceur' ? requiredFieldsAnnonceur : [])
-    ];
+    const allRequiredFields = role === 'candidat' ? requiredFieldsCandidat : requiredFieldsAnnonceur;
     
     const missingFields = allRequiredFields.filter(field => {
       const value = payload[field];
@@ -151,17 +136,50 @@ export class UserProfileService {
     });
 
     if (missingFields.length > 0) {
-      throw new UnauthorizedException(`Champs manquants: ${missingFields.join(', ')}`);
+      throw new UnauthorizedException(`Champs obligatoires manquants: ${missingFields.join(', ')}`);
     }
 
+    // Préparer les données pour la mise à jour (exclure l'email pour éviter les conflits)
+    const { email, ...payloadWithoutEmail } = payload;
+    const updateData = {
+      ...payloadWithoutEmail,
+      is_onboarded: true,
+      updated_at: new Date().toISOString()
+    };
+
+    // Gérer les champs spécifiques selon le rôle
+    if (role === 'candidat') {
+      // S'assurer que les champs candidat sont bien formatés
+      if (payload.preferred_property_types && Array.isArray(payload.preferred_property_types)) {
+        updateData.preferred_property_types = payload.preferred_property_types;
+      }
+      if (payload.preferred_locations && Array.isArray(payload.preferred_locations)) {
+        updateData.preferred_locations = payload.preferred_locations;
+      }
+      if (payload.salary_slips_urls && Array.isArray(payload.salary_slips_urls)) {
+        updateData.salary_slips_urls = payload.salary_slips_urls;
+      }
+      if (payload.guarantor_documents_urls && Array.isArray(payload.guarantor_documents_urls)) {
+        updateData.guarantor_documents_urls = payload.guarantor_documents_urls;
+      }
+    } else if (role === 'annonceur') {
+      // S'assurer que les champs annonceur sont bien formatés
+      updateData.agency_name = payload.agency_name || null;
+      updateData.agency_license = payload.agency_license || null;
+      updateData.agency_address = payload.agency_address || null;
+      updateData.agency_phone = payload.agency_phone || null;
+      updateData.owner_status = payload.owner_status || null;
+      updateData.number_of_properties = payload.number_of_properties || null;
+      updateData.property_relation = payload.property_relation || null;
+    }
+    
     const { error } = await client
       .from('profiles')
-      .update(payload)
+      .update(updateData)
       .eq('id', userId);
 
     if (error) {
-      console.error('[ERROR] Onboarding update failed:', error);
-      throw new UnauthorizedException('Erreur lors de la mise à jour du profil');
+      throw new UnauthorizedException(`Erreur lors de la mise à jour du profil: ${error.message}`);
     }
 
     return { message: 'Onboarding complété avec succès' };

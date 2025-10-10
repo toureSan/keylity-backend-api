@@ -81,11 +81,20 @@ export class UploadController {
     description: 'Avatar uploadé avec succès',
   })
   async uploadAvatar(@Request() req, @UploadedFile() file: any) {
+    this.logger.log(`Avatar upload request received`);
+    this.logger.log(`File received:`, file ? {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    } : 'No file');
+
     if (!file) {
+      this.logger.error('No file provided for avatar upload');
       throw new BadRequestException('Aucun fichier fourni');
     }
 
     if (!file.mimetype.startsWith('image/')) {
+      this.logger.error(`Invalid file type for avatar: ${file.mimetype}`);
       throw new BadRequestException('Seules les images sont acceptées');
     }
 
@@ -93,10 +102,13 @@ export class UploadController {
     const fileName = `${Date.now()}-${file.originalname}`;
     const filePath = `${userId}/${fileName}`;
 
+    this.logger.log(`Uploading avatar for user ${userId} to path: ${filePath}`);
+
     try {
       const url = await this.uploadService.uploadFile('avatars', filePath, file.buffer, file.mimetype);
       
-      this.logger.log(`Avatar uploaded for user ${userId}: ${filePath}`);
+      this.logger.log(`Avatar uploaded successfully for user ${userId}: ${filePath}`);
+      this.logger.log(`Avatar URL: ${url}`);
       
       return {
         url,
@@ -106,6 +118,7 @@ export class UploadController {
       };
     } catch (error) {
       this.logger.error(`Avatar upload failed for user ${userId}: ${error.message}`);
+      this.logger.error(`Error stack:`, error.stack);
       throw new BadRequestException(`Erreur lors de l'upload: ${error.message}`);
     }
   }

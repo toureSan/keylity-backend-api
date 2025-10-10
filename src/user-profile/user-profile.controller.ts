@@ -55,6 +55,55 @@ export class UserProfileController {
 
   @Post('onboarding')
   @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Compléter l'onboarding utilisateur",
+  })
+  @ApiResponse({ status: 200, description: 'Onboarding complété avec succès' })
+  @ApiResponse({ status: 400, description: 'Requête invalide' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async completeOnboarding(
+    @Request() req, 
+    @Body() body: CompleteOnboardingDto
+  ) {
+    const userId = req.user.sub;
+    this.logger.log(`Onboarding request for user ${userId}`);
+    this.logger.log(`Request body:`, JSON.stringify(body, null, 2));
+    this.logger.log(`Authorization header:`, req.headers.authorization ? 'Present' : 'Missing');
+
+    try {
+      const accessToken = req.headers.authorization?.split(' ')[1];
+      this.logger.log(`Access token extracted:`, accessToken ? 'Present' : 'Missing');
+      
+      this.logger.log(`Calling getUserProfile for user ${userId}`);
+      const userProfile = await this.userProfileService.getUserProfile(userId, accessToken);
+      this.logger.log(`User profile retrieved successfully:`, userProfile);
+
+      const role = userProfile.roles.includes('annonceur')
+        ? 'annonceur'
+        : 'candidat';
+
+      this.logger.log(`User role determined: ${role}`);
+
+      this.logger.log(`Calling completeOnboarding service`);
+      const result = await this.userProfileService.completeOnboarding(
+        userId,
+        role,
+        body,
+      );
+      this.logger.log(`Onboarding completed successfully`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Error in completeOnboarding: ${error.message}`, error.stack);
+      this.logger.error(`Request body that caused error:`, JSON.stringify(body, null, 2));
+      throw new UnauthorizedException(
+        `Erreur lors de l'enregistrement de l'onboarding utilisateur: ${error.message}`,
+      );
+    }
+  }
+
+  @Post('onboarding-with-files')
+  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FilesInterceptor('files', 10)) // Max 10 files
   @ApiBearerAuth()
   @ApiOperation({
@@ -64,13 +113,13 @@ export class UserProfileController {
   @ApiResponse({ status: 200, description: 'Onboarding complété avec succès' })
   @ApiResponse({ status: 400, description: 'Requête invalide' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-  async completeOnboarding(
+  async completeOnboardingWithFiles(
     @Request() req, 
     @Body() body: any,
     @UploadedFiles() files?: any[]
   ) {
     const userId = req.user.sub;
-    this.logger.log(`Onboarding request for user ${userId} with ${files?.length || 0} files`);
+    this.logger.log(`Onboarding with files request for user ${userId} with ${files?.length || 0} files`);
   
     try {
       const accessToken = req.headers.authorization?.split(' ')[1];
@@ -93,7 +142,7 @@ export class UserProfileController {
         body,
       );
     } catch (error) {
-      this.logger.error(`Error in completeOnboarding: ${error.message}`, body);
+      this.logger.error(`Error in completeOnboardingWithFiles: ${error.message}`, body);
       throw new UnauthorizedException(
         "Erreur lors de l'enregistrement de l'onboarding utilisateur",
       );
@@ -156,6 +205,9 @@ export class UserProfileController {
     }
     if (name.includes('salaire') || name.includes('bulletin') || name.includes('salary')) {
       return 'salary_slips_urls';
+    }
+    if (name.includes('bank') || name.includes('bancaire') || name.includes('relevé') || name.includes('bank-statements')) {
+      return 'bank_statements_urls';
     }
     if (name.includes('loyer') || name.includes('rental')) {
       return 'rental_attestation_url';

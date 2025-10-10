@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/services/supabase.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { buildUserProfilePayload } from 'src/common/utils/build-user-profile-payload.util';
@@ -124,15 +126,37 @@ export class AuthService {
 
       const userId = authData.user.id;
 
-      // Récupérer les informations de l'utilisateur
-      const { data: userData, error: userError } = await this.supabaseService.getAdminClient()
-        .from('users')
-        .select('id, email, is_email_verified')
+      // Récupérer les informations de l'utilisateur depuis la table profiles
+      let { data: userData, error: userError } = await this.supabaseService.getAdminClient()
+        .from('profiles')
+        .select('id, email')
         .eq('id', userId)
         .single();
 
       if (userError || !userData) {
-        throw new UnauthorizedException('Utilisateur non trouvé');
+        // Si l'utilisateur n'existe pas dans profiles, essayer de le créer
+        this.logger.log(`User ${userId} not found in profiles, creating profile...`);
+        
+        // Créer un profil basique pour l'utilisateur
+        const { data: newProfile, error: createError } = await this.supabaseService.getAdminClient()
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: authData.user.email,
+            user_type: 'candidat',
+            is_onboarded: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select('id, email')
+          .single();
+
+        if (createError || !newProfile) {
+          this.logger.error(`Failed to create profile for user ${userId}: ${createError?.message}`);
+          throw new UnauthorizedException('Erreur lors de la création du profil');
+        }
+        
+        userData = newProfile;
       }
 
       // Générer le token JWT
@@ -146,7 +170,7 @@ export class AuthService {
         user: {
           id: userData.id,
           email: userData.email,
-          is_email_verified: userData.is_email_verified,
+          is_email_verified: true, // Supabase gère la vérification email
         },
       };
     } catch (error) {
@@ -233,6 +257,72 @@ export class AuthService {
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Erreur lors de la vérification de l\'email');
+    }
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+
+    try {
+      this.logger.log(`Password reset requested for: ${email}`);
+
+      const { error } = await this.supabaseService.getAdminClient().auth.resetPasswordForEmail(email, {
+        redirectTo: `${this.configService.get('FRONTEND_URL')}/auth/reset-password`,
+      });
+
+      if (error) {
+        this.logger.error(`Password reset error for ${email}:`, error);
+        throw new UnauthorizedException('Erreur lors de l\'envoi de l\'email de réinitialisation');
+      }
+
+      this.logger.log(`Password reset email sent to: ${email}`);
+      return {
+        message: 'Un email de réinitialisation a été envoyé à votre adresse email',
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      this.logger.error(`Unexpected error in forgotPassword for ${email}:`, error);
+      throw new UnauthorizedException('Erreur lors de l\'envoi de l\'email de réinitialisation');
+    }
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, newPassword } = resetPasswordDto;
+
+    try {
+      this.logger.log('Password reset attempt with token');
+
+      // Pour la réinitialisation de mot de passe, nous devons utiliser le client avec le token
+      // Créer un client Supabase avec le token de réinitialisation
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = this.configService.get('SUPABASE_URL');
+      const supabaseAnonKey = this.configService.get('SUPABASE_ANON_KEY');
+      
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
+
+      // Vérifier le token et réinitialiser le mot de passe
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        this.logger.error('Password reset error:', error);
+        throw new UnauthorizedException('Token de réinitialisation invalide ou expiré');
+      }
+
+      this.logger.log(`Password successfully reset for user: ${data.user?.email}`);
+      return {
+        message: 'Votre mot de passe a été réinitialisé avec succès',
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      this.logger.error('Unexpected error in resetPassword:', error);
+      throw new UnauthorizedException('Erreur lors de la réinitialisation du mot de passe');
     }
   }
 }

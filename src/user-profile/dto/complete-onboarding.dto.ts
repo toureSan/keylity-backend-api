@@ -11,10 +11,6 @@ export class CompleteOnboardingDto {
   @IsString()
   last_name: string;
 
-  @ApiProperty({ description: 'Rôle utilisateur', example: 'candidat' })
-@IsString()
-role: 'candidat' | 'annonceur';
-
   @ApiProperty({ description: 'Email', example: 'jean.dupont@email.com' })
   @IsEmail()
   email: string;
@@ -23,41 +19,50 @@ role: 'candidat' | 'annonceur';
   @IsString()
   phone: string;
 
-  @ApiProperty({ description: 'Adresse', example: '123 Rue de la Paix' })
+  @ApiProperty({ description: 'Langue préférée', example: 'fr', required: false })
+  @IsOptional()
   @IsString()
-  address: string;
+  preferred_language?: string;
 
-  @ApiProperty({ description: 'Code postal', example: '75001' })
+  @ApiProperty({ description: 'Adresse', example: '123 Rue de la Paix', required: false })
+  @IsOptional()
   @IsString()
-  zip_code: string;
+  address?: string;
 
-  @ApiProperty({ description: 'Date de naissance', example: '1990-01-01' })
+  @ApiProperty({ description: 'Code postal', example: '75001', required: false })
+  @IsOptional()
+  @IsString()
+  zip_code?: string;
+
+  @ApiProperty({ description: 'Date de naissance', example: '1990-01-01', required: false })
+  @IsOptional()
   @IsDateString()
-  birth_date: string;
+  birth_date?: string;
 
-  @ApiProperty({ description: 'Nationalité', example: 'Française' })
+  @ApiProperty({ description: 'Nationalité', example: 'Française', required: false })
+  @IsOptional()
   @IsString()
-  nationality: string;
+  nationality?: string;
 
-  @ApiProperty({ description: 'Statut professionnel', example: 'Salarié' })
+  @ApiProperty({ description: 'Statut professionnel', example: 'Salarié', required: false })
+  @IsOptional()
   @IsString()
-  professional_status: string;
+  professional_status?: string;
 
-  @ApiProperty({ description: 'Biographie', example: 'Je suis un candidat sérieux...' })
+  @ApiProperty({ description: 'Biographie', example: 'Je suis un candidat sérieux...', required: false })
+  @IsOptional()
   @IsString()
-  bio: string;
+  bio?: string;
 
-  @ApiProperty({ description: 'URL de l\'avatar', example: 'https://example.com/avatar.jpg' })
-  @IsUrl()
-  avatar_url: string;
-
-  @ApiProperty({ description: 'URL de la photo de profil', example: 'https://example.com/profile.jpg' })
-  @IsUrl()
-  profile_photo_url: string;
-
-  @ApiProperty({ description: 'Langue préférée', example: 'fr' })
+  @ApiProperty({ description: 'URL de l\'avatar', example: 'https://example.com/avatar.jpg', required: false })
+  @IsOptional()
   @IsString()
-  preferred_language: string;
+  avatar_url?: string;
+
+  @ApiProperty({ description: 'URL de la photo de profil', example: 'https://example.com/profile.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  profile_photo_url?: string;
 
   // Champs spécifiques aux candidats
   @ApiProperty({ 
@@ -134,6 +139,16 @@ role: 'candidat' | 'annonceur';
   @ValidateIf((o) => o.role === 'candidat')
   @IsUrl()
   rental_attestation_url?: string;
+
+  @ApiProperty({ 
+    description: 'URLs des relevés bancaires', 
+    example: ['https://example.com/bank1.pdf', 'https://example.com/bank2.pdf'],
+    required: false 
+  })
+  @ValidateIf((o) => o.role === 'candidat')
+  @IsArray()
+  @IsUrl({}, { each: true })
+  bank_statements_urls?: string[];
 
   @ApiProperty({ 
     description: 'URL du certificat de dette', 

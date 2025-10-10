@@ -16,6 +16,8 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -94,5 +96,49 @@ export class AuthController {
     }
 
     return this.authService.verifyEmail(body.token);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Demande de réinitialisation de mot de passe' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email de réinitialisation envoyé avec succès',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Un email de réinitialisation a été envoyé à votre adresse email'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Email invalide' })
+  @ApiResponse({ status: 401, description: 'Erreur lors de l\'envoi de l\'email' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Réinitialisation du mot de passe' })
+  @ApiResponse({
+    status: 200,
+    description: 'Mot de passe réinitialisé avec succès',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Votre mot de passe a été réinitialisé avec succès'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Token ou mot de passe invalide' })
+  @ApiResponse({ status: 401, description: 'Token expiré ou invalide' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

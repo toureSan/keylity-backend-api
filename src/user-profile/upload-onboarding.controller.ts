@@ -131,6 +131,9 @@ export class UploadOnboardingController {
     if (name.includes('salaire') || name.includes('bulletin') || name.includes('salary')) {
       return 'salary_slips_urls';
     }
+    if (name.includes('bank') || name.includes('bancaire') || name.includes('relevé') || name.includes('bank-statements')) {
+      return 'bank_statements_urls';
+    }
     if (name.includes('loyer') || name.includes('rental')) {
       return 'rental_attestation_url';
     }
