@@ -24,7 +24,7 @@ export class UploadController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Uploader un document (PDF)',
+    summary: 'Uploader un document (PDF ou image)',
   })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({
@@ -43,8 +43,18 @@ export class UploadController {
       throw new BadRequestException('Aucun fichier fourni');
     }
 
-    if (file.mimetype !== 'application/pdf') {
-      throw new BadRequestException('Seuls les fichiers PDF sont acceptés');
+    // Accepter les PDF et les images
+    const allowedMimeTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Seuls les fichiers PDF et les images (JPEG, PNG, GIF, WebP) sont acceptés');
     }
 
     const userId = req.user.sub;

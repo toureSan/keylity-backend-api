@@ -123,6 +123,13 @@ export class SupabaseService {
       );
     }
 
+    // Pour les documents, retourner le path au lieu de l'URL publique
+    // L'URL signée sera générée côté frontend
+    if (bucket === 'documents') {
+      return path;
+    }
+
+    // Pour les autres buckets (avatars, property-images), retourner l'URL publique
     const {
       data: { publicUrl },
     } = this.supabaseAdmin.storage.from(bucket).getPublicUrl(path);
@@ -137,5 +144,26 @@ export class SupabaseService {
         `Error deleting file: ${error.message}`,
       );
     }
+  }
+
+  /**
+   * Génère une URL signée pour accéder à un fichier privé
+   */
+  async getSignedUrl(
+    bucket: string,
+    path: string,
+    expiresIn: number = 3600, // 1 heure par défaut
+  ): Promise<string> {
+    const { data, error } = await this.supabaseAdmin.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresIn);
+
+    if (error) {
+      throw new BadRequestException(
+        `Error creating signed URL: ${error.message}`,
+      );
+    }
+
+    return data.signedUrl;
   }
 }

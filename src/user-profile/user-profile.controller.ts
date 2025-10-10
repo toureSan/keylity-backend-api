@@ -19,6 +19,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadService } from '../upload/upload.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { GetSignedUrlDto } from './dto/get-signed-url.dto';
 
 @Controller('user-profile')
 export class UserProfileController {
@@ -245,6 +246,30 @@ export class UserProfileController {
       this.logger.error(`Error in updateProfile: ${error.message}`, updateData);
       throw new UnauthorizedException(
         'Erreur lors de la mise à jour du profil utilisateur',
+      );
+    }
+  }
+
+  @Post('signed-url')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Générer une URL signée pour accéder à un document privé',
+  })
+  @ApiBody({ type: GetSignedUrlDto })
+  @ApiResponse({ status: 200, description: 'URL signée générée avec succès' })
+  @ApiResponse({ status: 400, description: 'Requête invalide' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async getSignedUrl(@Request() req, @Body() dto: GetSignedUrlDto) {
+    const userId = req.user.sub;
+    this.logger.log(`Get signed URL request for user ${userId}, path: ${dto.path}`);
+
+    try {
+      return await this.userProfileService.getSignedUrl(userId, dto.bucket, dto.path);
+    } catch (error) {
+      this.logger.error(`Error in getSignedUrl: ${error.message}`, dto);
+      throw new BadRequestException(
+        'Erreur lors de la génération de l\'URL signée',
       );
     }
   }

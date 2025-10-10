@@ -221,4 +221,54 @@ export class UserProfileService {
       profile: data
     };
   }
+
+  async getSignedUrl(userId: string, bucket: string, path: string) {
+    // Vérifier que l'utilisateur a accès à ce document
+    if (bucket === 'documents') {
+      const client = this.supabaseService.getAdminClient();
+      
+      // Vérifier que le document appartient à l'utilisateur
+      const { data: profileData, error: profileError } = await client
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profileData) {
+        throw new UnauthorizedException('Utilisateur non trouvé');
+      }
+
+      // Vérifier que le path correspond à un document de l'utilisateur
+      const documentFields = [
+        'id_document_url',
+        'employment_certificate_url',
+        'salary_slips_urls',
+        'bank_statements_urls',
+        'rental_attestation_url',
+        'debt_certificate_url',
+        'residence_permit_url',
+        'guarantor_documents_urls'
+      ];
+
+      const hasAccess = documentFields.some(field => {
+        const value = profileData[field];
+        if (Array.isArray(value)) {
+          return value.includes(path);
+        }
+        return value === path;
+      });
+
+      if (!hasAccess) {
+        throw new UnauthorizedException('Accès non autorisé à ce document');
+      }
+    }
+
+    // Générer l'URL signée
+    const signedUrl = await this.supabaseService.getSignedUrl(bucket, path, 3600); // 1 heure
+
+    return {
+      signedUrl,
+      expiresIn: 3600
+    };
+  }
 }
