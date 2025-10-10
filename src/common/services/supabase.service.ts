@@ -110,7 +110,7 @@ export class SupabaseService {
     file: Buffer,
     contentType: string,
   ): Promise<string> {
-    const { error } = await this.supabase.storage
+    const { error } = await this.supabaseAdmin.storage
       .from(bucket)
       .upload(path, file, {
         contentType,
@@ -125,13 +125,13 @@ export class SupabaseService {
 
     const {
       data: { publicUrl },
-    } = this.supabase.storage.from(bucket).getPublicUrl(path);
+    } = this.supabaseAdmin.storage.from(bucket).getPublicUrl(path);
 
     return publicUrl;
   }
 
   async deleteFile(bucket: string, path: string): Promise<void> {
-    const { error } = await this.supabase.storage.from(bucket).remove([path]);
+    const { error } = await this.supabaseAdmin.storage.from(bucket).remove([path]);
     if (error) {
       throw new BadRequestException(
         `Error deleting file: ${error.message}`,

@@ -17,7 +17,6 @@ export class UserProfileService {
       .single();
 
     if (profileError || !profileData) {
-      console.error('[DEBUG] Supabase profile error:', profileError);
       throw new UnauthorizedException('Impossible de récupérer le profil');
     }
 
@@ -106,6 +105,8 @@ export class UserProfileService {
       partner_income: profileData.partner_income,
       other_income: profileData.other_income,
       is_onboarded: profileData.is_onboarded,
+      candidate_onboarding_completed: (profileData as any).candidate_onboarding_completed,
+      annonceur_onboarding_completed: (profileData as any).annonceur_onboarding_completed,
     });
 
     return {
@@ -146,6 +147,13 @@ export class UserProfileService {
       is_onboarded: true,
       updated_at: new Date().toISOString()
     };
+
+    // Mettre à jour le champ spécifique selon le rôle
+    if (role === 'candidat') {
+      (updateData as any).candidate_onboarding_completed = true;
+    } else if (role === 'annonceur') {
+      (updateData as any).annonceur_onboarding_completed = true;
+    }
 
     // Gérer les champs spécifiques selon le rôle
     if (role === 'candidat') {
@@ -205,7 +213,6 @@ export class UserProfileService {
       .single();
 
     if (error) {
-      console.error('[ERROR] Profile update failed:', error);
       throw new UnauthorizedException('Erreur lors de la mise à jour du profil');
     }
 
