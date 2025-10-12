@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { UserProfileModule } from './user-profile/user-profile.module';
 import { UploadModule } from './upload/upload.module';
 import { ApplicationModule } from './application/application.module';
+import { PropertiesModule } from './properties/properties.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ApplicationModule } from './application/application.module';
     UserProfileModule,
     UploadModule,
     ApplicationModule,
+    PropertiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

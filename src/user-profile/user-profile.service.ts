@@ -80,8 +80,6 @@ export class UserProfileService {
       bio: profileData.bio,
       avatar_url: profileData.avatar_url,
       profile_photo_url: profileData.profile_photo_url,
-      candidate_profile_image_url: profileData.candidate_profile_image_url,
-      annonceur_profile_image_url: profileData.annonceur_profile_image_url,
       preferred_language: profileData.preferred_language,
       contact_methods: profileData.contact_methods,
       correspondence_address: profileData.correspondence_address,

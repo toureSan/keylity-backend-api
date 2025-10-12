@@ -72,16 +72,6 @@ export class CompleteOnboardingDto {
   @IsString()
   profile_photo_url?: string;
 
-  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle candidat', example: 'https://example.com/candidate-profile.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  candidate_profile_image_url?: string;
-
-  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle annonceur', example: 'https://example.com/annonceur-profile.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  annonceur_profile_image_url?: string;
-
   // Champs spécifiques aux candidats
   @ApiProperty({ 
     description: 'Types de propriétés préférées', 

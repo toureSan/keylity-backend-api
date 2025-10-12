@@ -197,12 +197,6 @@ export class UserProfileController {
     if (name.includes('profile') || name.includes('profil')) {
       return 'profile_photo_url';
     }
-    if (name.includes('candidate') || name.includes('candidat')) {
-      return 'candidate_profile_image_url';
-    }
-    if (name.includes('annonceur') || name.includes('advertiser')) {
-      return 'annonceur_profile_image_url';
-    }
     if (name.includes('id') || name.includes('identite') || name.includes('cni')) {
       return 'id_document_url';
     }
