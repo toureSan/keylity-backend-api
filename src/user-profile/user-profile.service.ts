@@ -80,6 +80,8 @@ export class UserProfileService {
       bio: profileData.bio,
       avatar_url: profileData.avatar_url,
       profile_photo_url: profileData.profile_photo_url,
+      candidate_profile_image_url: profileData.candidate_profile_image_url,
+      annonceur_profile_image_url: profileData.annonceur_profile_image_url,
       preferred_language: profileData.preferred_language,
       contact_methods: profileData.contact_methods,
       correspondence_address: profileData.correspondence_address,
@@ -140,10 +142,10 @@ export class UserProfileService {
       throw new UnauthorizedException(`Champs obligatoires manquants: ${missingFields.join(', ')}`);
     }
 
-    // Préparer les données pour la mise à jour (exclure l'email pour éviter les conflits)
-    const { email, ...payloadWithoutEmail } = payload;
+    // Préparer les données pour la mise à jour (exclure l'email et userType pour éviter les conflits)
+    const { email, userType, ...payloadWithoutEmailAndUserType } = payload;
     const updateData = {
-      ...payloadWithoutEmail,
+      ...payloadWithoutEmailAndUserType,
       is_onboarded: true,
       updated_at: new Date().toISOString()
     };
@@ -172,6 +174,7 @@ export class UserProfileService {
       }
     } else if (role === 'annonceur') {
       // S'assurer que les champs annonceur sont bien formatés
+      updateData.advertiser_type = payload.advertiser_type || null;
       updateData.agency_name = payload.agency_name || null;
       updateData.agency_license = payload.agency_license || null;
       updateData.agency_address = payload.agency_address || null;
@@ -190,7 +193,68 @@ export class UserProfileService {
       throw new UnauthorizedException(`Erreur lors de la mise à jour du profil: ${error.message}`);
     }
 
+    // Mettre à jour la table user_roles pour assigner le bon rôle
+    // On ajoute le nouveau rôle sans supprimer les autres (support multi-rôles)
+    const { error: roleError } = await client
+      .from('user_roles')
+      .upsert({
+        user_id: userId,
+        role: role,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,role'
+      });
+
+    if (roleError) {
+      console.warn(`Erreur lors de la mise à jour du rôle: ${roleError.message}`);
+      // Ne pas faire échouer l'onboarding pour une erreur de rôle
+    } else {
+      console.log(`Rôle '${role}' assigné avec succès à l'utilisateur ${userId}`);
+    }
+
     return { message: 'Onboarding complété avec succès' };
+  }
+
+  // Fonction utilitaire pour gérer les rôles d'un utilisateur
+  async manageUserRoles(userId: string, action: 'add' | 'remove' | 'get', role?: string) {
+    const client = this.supabaseService.getAdminClient();
+
+    switch (action) {
+      case 'add':
+        if (!role) throw new Error('Rôle requis pour l\'ajout');
+        const { error: addError } = await client
+          .from('user_roles')
+          .upsert({
+            user_id: userId,
+            role: role,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,role'
+          });
+        if (addError) throw new Error(`Erreur lors de l'ajout du rôle: ${addError.message}`);
+        return { message: `Rôle '${role}' ajouté avec succès` };
+
+      case 'remove':
+        if (!role) throw new Error('Rôle requis pour la suppression');
+        const { error: removeError } = await client
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('role', role);
+        if (removeError) throw new Error(`Erreur lors de la suppression du rôle: ${removeError.message}`);
+        return { message: `Rôle '${role}' supprimé avec succès` };
+
+      case 'get':
+        const { data: roles, error: getError } = await client
+          .from('user_roles')
+          .select('role, created_at')
+          .eq('user_id', userId);
+        if (getError) throw new Error(`Erreur lors de la récupération des rôles: ${getError.message}`);
+        return { roles: roles || [] };
+
+      default:
+        throw new Error('Action non supportée');
+    }
   }
 
   async updateProfile(userId: string, updateData: UpdateProfileDto) {

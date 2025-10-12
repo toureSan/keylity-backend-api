@@ -80,11 +80,10 @@ export class UserProfileController {
       const userProfile = await this.userProfileService.getUserProfile(userId, accessToken);
       this.logger.log(`User profile retrieved successfully:`, userProfile);
 
-      const role = userProfile.roles.includes('annonceur')
-        ? 'annonceur'
-        : 'candidat';
+      // Déterminer le rôle basé sur le userType du payload, pas sur les rôles existants
+      const role = body.userType === 'landlord' ? 'annonceur' : 'candidat';
 
-      this.logger.log(`User role determined: ${role}`);
+      this.logger.log(`User role determined from payload: ${role} (userType: ${body.userType})`);
 
       this.logger.log(`Calling completeOnboarding service`);
       const result = await this.userProfileService.completeOnboarding(
@@ -197,6 +196,12 @@ export class UserProfileController {
     }
     if (name.includes('profile') || name.includes('profil')) {
       return 'profile_photo_url';
+    }
+    if (name.includes('candidate') || name.includes('candidat')) {
+      return 'candidate_profile_image_url';
+    }
+    if (name.includes('annonceur') || name.includes('advertiser')) {
+      return 'annonceur_profile_image_url';
     }
     if (name.includes('id') || name.includes('identite') || name.includes('cni')) {
       return 'id_document_url';

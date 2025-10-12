@@ -137,6 +137,16 @@ export class UpdateProfileDto {
   @IsString()
   profile_photo_url?: string;
 
+  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle candidat', required: false })
+  @IsOptional()
+  @IsString()
+  candidate_profile_image_url?: string;
+
+  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle annonceur', required: false })
+  @IsOptional()
+  @IsString()
+  annonceur_profile_image_url?: string;
+
   @ApiProperty({ description: 'Langue préférée', required: false })
   @IsOptional()
   @IsString()

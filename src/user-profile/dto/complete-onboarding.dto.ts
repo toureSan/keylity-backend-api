@@ -3,6 +3,14 @@ import { IsString, IsEmail, IsNumber, IsDateString, IsArray, IsOptional, IsUrl, 
 
 export class CompleteOnboardingDto {
  
+  @ApiProperty({ 
+    description: 'Type d\'utilisateur', 
+    example: 'landlord',
+    enum: ['tenant', 'landlord']
+  })
+  @IsString()
+  userType: string;
+
   @ApiProperty({ description: 'Prénom', example: 'Jean' })
   @IsString()
   first_name: string;
@@ -63,6 +71,16 @@ export class CompleteOnboardingDto {
   @IsOptional()
   @IsString()
   profile_photo_url?: string;
+
+  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle candidat', example: 'https://example.com/candidate-profile.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  candidate_profile_image_url?: string;
+
+  @ApiProperty({ description: 'URL de l\'image de profil spécifique au rôle annonceur', example: 'https://example.com/annonceur-profile.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  annonceur_profile_image_url?: string;
 
   // Champs spécifiques aux candidats
   @ApiProperty({ 
@@ -323,6 +341,16 @@ export class CompleteOnboardingDto {
   other_income?: number;
 
   // Champs spécifiques aux annonceurs
+  @ApiProperty({ 
+    description: 'Type d\'annonceur', 
+    example: 'individual',
+    enum: ['individual', 'professional'],
+    required: false 
+  })
+  @ValidateIf((o) => o.userType === 'landlord')
+  @IsString()
+  advertiser_type?: string;
+
   @ApiProperty({ 
     description: 'Nom de l\'agence', 
     example: 'Agence Immobilière ABC',
