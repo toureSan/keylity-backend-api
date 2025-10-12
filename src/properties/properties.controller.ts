@@ -32,12 +32,8 @@ export class PropertiesController {
   @ApiResponse({ status: 201, description: 'Propriété créée avec succès' })
   @ApiResponse({ status: 403, description: 'Accès refusé - Rôle annonceur requis' })
   @ApiResponse({ status: 401, description: 'Non authentifié' })
-async create(@Body() createPropertyDto: CreatePropertyDto, @Request() req) {
-if (!req.user || !req.user.id) {
-  throw new Error('Utilisateur non authentifié');
-}
-
-return this.propertiesService.createProperty(createPropertyDto, req.user.id);
+  async create(@Body() createPropertyDto: CreatePropertyDto, @Request() req) {
+    return this.propertiesService.createProperty(createPropertyDto, req.user.id);
   }
 
   @Get()
@@ -67,27 +63,22 @@ return this.propertiesService.createProperty(createPropertyDto, req.user.id);
     @Query('maxArea') maxArea?: string,
     @Query('rooms') rooms?: string,
   ) {
-    // Convertir les paramètres de pagination
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
-    
-    // Convertir les paramètres numériques
     const filters = {
       transactionType,
       type,
       location,
       city,
-      minPrice: minPrice ? parseInt(minPrice, 10) : undefined,
-      maxPrice: maxPrice ? parseInt(maxPrice, 10) : undefined,
-      minArea: minArea ? parseInt(minArea, 10) : undefined,
-      maxArea: maxArea ? parseInt(maxArea, 10) : undefined,
-      rooms: rooms ? parseInt(rooms, 10) : undefined,
+      minPrice,
+      maxPrice,
+      minArea,
+      maxArea,
+      rooms,
     };
 
     // Supprimer les filtres undefined
     Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key]);
 
-    return this.propertiesService.findAllProperties(pageNum, limitNum, filters);
+    return this.propertiesService.findAllProperties(page, limit, filters);
   }
 
   @Get('my-properties')

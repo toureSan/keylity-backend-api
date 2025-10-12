@@ -10,73 +10,50 @@ export class PropertiesService {
   async createProperty(createPropertyDto: CreatePropertyDto, userId: string) {
     try {
 
-      // Vérification des rôles temporairement désactivée pour permettre la création
-      // TODO: Réactiver la vérification des rôles une fois le problème résolu
+      // Vérifier que l'utilisateur a le rôle annonceur et récupérer le profil
+      // Note: user_roles.user_id référence profiles.id, pas users.id
+      const { data: profile, error: profileError } = await this.supabase
+        .getClient()
+        .from('profiles')
+        .select('id, first_name, last_name, advertiser_type')
+        .eq('id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        throw new ForbiddenException('Profil utilisateur non trouvé');
+      }
+
+      const { data: userRoles, error: rolesError } = await this.supabase
+        .getClient()
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', profile.id);
+
+      if (rolesError) {
+        throw new Error(`Erreur lors de la vérification des rôles: ${rolesError.message}`);
+      }
+
+      const hasAnnonceurRole = userRoles?.some(ur => ur.role === 'annonceur');
       
-      // Créer un profil par défaut pour éviter les erreurs
-      const profile = {
-        id: userId,
-        first_name: 'Utilisateur',
-        last_name: 'Test',
-        advertiser_type: 'individual'
-      };
+      if (!hasAnnonceurRole) {
+        throw new ForbiddenException('Seuls les annonceurs peuvent publier des propriétés');
+      }
 
       // Formater le nom de l'annonceur
       const advertiserName = this.formatAdvertiserName(profile);
 
-      // Préparer les données pour l'insertion (tous les champs du schéma)
+      // Préparer les données pour l'insertion (seulement les champs qui existent dans le schéma)
       const propertyData = {
         title: createPropertyDto.title,
         description: createPropertyDto.description,
-        type: this.mapPropertyType(createPropertyDto.type),
-        transaction_type: this.mapTransactionType(createPropertyDto.transactionType),
+        type: this.mapPropertyType(createPropertyDto.type), // Mapping des types de propriétés
         price: createPropertyDto.price,
         address: createPropertyDto.address,
         city: createPropertyDto.city,
         postal_code: createPropertyDto.postalCode,
-        location: createPropertyDto.location,
-        area: createPropertyDto.area,
-        rooms: createPropertyDto.rooms,
-        bedrooms: createPropertyDto.bedrooms,
-        bathrooms: createPropertyDto.bathrooms,
-        floor: createPropertyDto.floor,
-        total_floors: createPropertyDto.totalFloors,
-        construction_year: createPropertyDto.constructionYear,
-        living_area: createPropertyDto.livingArea,
-        orientation: createPropertyDto.orientation,
-        condition: createPropertyDto.condition,
-        monthly_charges: createPropertyDto.monthlyCharges,
-        deposit: createPropertyDto.deposit,
-        agency_fees: createPropertyDto.agencyFees,
-        application_fees: createPropertyDto.applicationFees,
-        available_from: createPropertyDto.availableFrom,
-        lease_duration: createPropertyDto.leaseDuration,
-        pets_allowed: createPropertyDto.petsAllowed,
-        smoking_allowed: createPropertyDto.smokingAllowed,
-        furnished: createPropertyDto.furnished,
-        student_friendly: createPropertyDto.studentFriendly,
-        contact_methods: createPropertyDto.contactMethods,
-        visit_availability: createPropertyDto.visitAvailability,
-        additional_info: createPropertyDto.additionalInfo,
-        equipments: createPropertyDto.equipments,
-        photos: createPropertyDto.photos,
-        latitude: createPropertyDto.latitude,
-        longitude: createPropertyDto.longitude,
-        user_id: userId,
         agent_id: userId,
-        status: 'available',
-        published_at: new Date().toISOString(),
-        is_featured: false,
-        views_count: 0,
-        favorites_count: 0,
       };
       
-      // Supprimer les champs undefined pour éviter les erreurs de base de données
-      Object.keys(propertyData).forEach(key => {
-        if (propertyData[key] === undefined) {
-          delete propertyData[key];
-        }
-      });
 
       // Créer la propriété
       const { data: property, error: createError } = await this.supabase
@@ -102,7 +79,17 @@ export class PropertiesService {
       let query = this.supabase
         .getClient()
         .from('properties')
-        .select('*')
+        .select(`
+          *,
+          profiles!properties_agent_id_fkey (
+            first_name,
+            last_name,
+            advertiser_type,
+            profile_photo_url,
+            candidate_profile_image_url,
+            annonceur_profile_image_url
+          )
+        `)
         .eq('status', 'available')
         .order('created_at', { ascending: false });
 
@@ -137,8 +124,8 @@ export class PropertiesService {
       // Formater les propriétés avec le nom de l'annonceur
       const formattedProperties = properties?.map(property => ({
         ...property,
-        advertiser_name: 'Propriétaire', // Valeur par défaut
-        advertiser_type: 'individual', // Valeur par défaut
+        advertiser_name: this.formatAdvertiserName(property.profiles),
+        advertiser_type: property.profiles?.advertiser_type,
       })) || [];
 
       return {
@@ -161,7 +148,17 @@ export class PropertiesService {
       const { data: property, error } = await this.supabase
         .getClient()
         .from('properties')
-        .select('*')
+        .select(`
+          *,
+          profiles!properties_agent_id_fkey (
+            first_name,
+            last_name,
+            advertiser_type,
+            profile_photo_url,
+            candidate_profile_image_url,
+            annonceur_profile_image_url
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -175,8 +172,8 @@ export class PropertiesService {
 
       return {
         ...property,
-        advertiser_name: 'Propriétaire', // Valeur par défaut
-        advertiser_type: 'individual', // Valeur par défaut
+        advertiser_name: this.formatAdvertiserName(property.profiles),
+        advertiser_type: property.profiles?.advertiser_type,
       };
     } catch (error) {
       console.error('Erreur dans findOneProperty:', error);
@@ -192,7 +189,17 @@ export class PropertiesService {
       const { data: properties, error, count } = await this.supabase
         .getClient()
         .from('properties')
-        .select('*')
+        .select(`
+          *,
+          profiles!properties_agent_id_fkey (
+            first_name,
+            last_name,
+            advertiser_type,
+            profile_photo_url,
+            candidate_profile_image_url,
+            annonceur_profile_image_url
+          )
+        `)
         .eq('agent_id', userId)
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -204,8 +211,8 @@ export class PropertiesService {
       // Formater les propriétés avec le nom de l'annonceur
       const formattedProperties = properties?.map(property => ({
         ...property,
-        advertiser_name: 'Propriétaire', // Valeur par défaut
-        advertiser_type: 'individual', // Valeur par défaut
+        advertiser_name: this.formatAdvertiserName(property.profiles),
+        advertiser_type: property.profiles?.advertiser_type,
       })) || [];
 
       return {
@@ -461,13 +468,13 @@ export class PropertiesService {
   private mapPropertyType(type: string): string {
     // Mapping des types de propriétés du frontend vers les valeurs de l'enum de la base
     const typeMapping: { [key: string]: string } = {
-      'appartement': 'apartment',
+      'duplex': 'apartment',
       'maison': 'house',
-      'studio': 'studio',
-      'duplex': 'duplex',
-      'loft': 'loft',
-      'penthouse': 'penthouse',
+      'appartement': 'apartment',
+      'studio': 'apartment',
+      'loft': 'apartment',
       'villa': 'house',
+      'penthouse': 'apartment',
       'terrain': 'land',
       'bureau': 'office',
       'commerce': 'commercial',
@@ -477,17 +484,4 @@ export class PropertiesService {
 
     return typeMapping[type.toLowerCase()] || 'apartment'; // Par défaut: apartment
   }
-
-  private mapTransactionType(transactionType: string): string {
-    // Mapping des types de transaction du frontend vers les valeurs acceptées par la contrainte
-    const transactionMapping: { [key: string]: string } = {
-      'location': 'location',
-      'vente': 'vente',
-      'rent': 'location',
-      'sale': 'vente'
-    };
-
-    return transactionMapping[transactionType.toLowerCase()] || 'location'; // Par défaut: location
-  }
-
 }
